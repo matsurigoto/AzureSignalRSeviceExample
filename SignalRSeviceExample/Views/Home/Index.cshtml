@@ -1,0 +1,93 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<script type="text/javascript" src='https://cdn.jsdelivr.net/npm/@@aspnet/signalr@1.0.0/dist/browser/signalr.min.js'></script>
+<script type="text/javascript">
+    document.addEventListener('DOMContentLoaded',
+        function() {
+
+            function bindConnectionMessage(connection) {
+                var messageCallback = function (name, message) {
+                    if (!message) return;
+                    // Html encode display name and message.
+                    var encodedName = name;
+                    var encodedMsg = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    var messageEntry = createMessageEntry(encodedName, encodedMsg);
+
+                    var messageBox = document.getElementById('messages');
+                    messageBox.appendChild(messageEntry);
+                    messageBox.scrollTop = messageBox.scrollHeight;
+                };
+                // Create a function that the hub can call to broadcast messages.
+                connection.on('broadcastMessage', messageCallback);
+                connection.on('echo', messageCallback);
+                connection.onclose(onConnectionError);
+            }
+
+            function createMessageEntry(encodedName, encodedMsg) {
+                var entry = document.createElement('div');
+                    entry.innerHTML = `<div>${encodedName}</div> <div>${encodedMsg}<div>`;  
+                return entry;
+            }
+
+            function onConnectionError(error) {
+                if (error && error.message) {
+                    console.error(error.message);
+                }
+            }
+
+            var messageInput = document.getElementById('message');
+            messageInput.focus();
+
+            function onConnected(connection) {
+                console.log('connection started');
+                connection.send('broadcastMessage', 'Message', 'Welcome');
+                document.getElementById('message').addEventListener('keypress', function (event) {
+                    if (event.keyCode === 13) {
+                        event.preventDefault();
+                        document.getElementById('sendmessage').click();
+                        return false;
+                    }
+                });
+                document.getElementById('echo').addEventListener('click', function (event) {
+                    connection.send('echo', '', messageInput.value);
+                    messageInput.value = '';
+                    messageInput.focus();
+                    event.preventDefault();
+                });
+            }
+
+            var connection = new signalR.HubConnectionBuilder()
+                .withUrl('/chat')
+                .build();
+
+            bindConnectionMessage(connection);
+
+            connection.start()
+                .then(function() {
+                    onConnected(connection);
+                })
+                .catch(function(error) {
+                    console.error(error.message);
+                });
+
+
+
+
+        });
+</script>
+
+
+<div>
+    <h2> 接收訊息 </h2>
+    <div id="messages" style="background-color: whitesmoke; "></div>
+</div>
+
+<div>
+    <textarea id="message"
+              style="width: 100%; padding: 5px 10px; border-style: hidden;" 
+              placeholder="Type message and press Enter to send...">
+    </textarea>
+    <button id="echo">echo</button>
+</div>
